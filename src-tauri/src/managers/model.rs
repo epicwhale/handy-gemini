@@ -36,6 +36,7 @@ pub enum EngineType {
     GigaAM,
     Canary,
     Cohere,
+    GeminiCloud,
 }
 
 /// Where a model comes from and how Handy obtains it — the routing discriminant
@@ -1190,6 +1191,39 @@ impl ModelManager {
     fn seed_catalog_models(available_models: &mut HashMap<String, ModelInfo>) {
         use std::collections::hash_map::Entry;
         let mut added = 0usize;
+
+        let gemini_id = "google/gemini-3.5-transcribe".to_string();
+        available_models.entry(gemini_id.clone()).or_insert(ModelInfo {
+            id: gemini_id,
+            name: "Gemini 3.5 Transcribe (Cloud)".to_string(),
+            description: "Google Gemini cloud speech-to-text API. Fast, smart punctuation & self-corrections.".to_string(),
+            filename: "".to_string(),
+            source: ModelSource::Local,
+            size_mb: 0,
+            is_downloaded: true,
+            is_downloading: false,
+            partial_size: 0,
+            is_directory: false,
+            engine_type: EngineType::GeminiCloud,
+            accuracy_score: 0.98,
+            speed_score: 0.95,
+            supports_translation: false,
+            is_recommended: false,
+            supported_languages: vec![
+                "auto".to_string(),
+                "en".to_string(),
+                "es".to_string(),
+                "fr".to_string(),
+                "de".to_string(),
+                "zh".to_string(),
+                "ja".to_string(),
+            ],
+            supports_language_selection: true,
+            is_custom: false,
+            supports_streaming: false,
+            supports_language_detection: true,
+        });
+
         for desc in crate::catalog::CATALOG.iter() {
             if let Entry::Vacant(slot) = available_models.entry(desc.id.clone()) {
                 slot.insert(desc.to_model_info(&DiskStatus::default()));
@@ -1385,6 +1419,12 @@ impl ModelManager {
         let mut vanished_models: Vec<String> = Vec::new();
 
         for model in models.values_mut() {
+            if matches!(model.engine_type, EngineType::GeminiCloud) {
+                model.is_downloaded = true;
+                model.is_downloading = false;
+                model.partial_size = 0;
+                continue;
+            }
             if let ModelSource::HuggingFace { repo_id, revision } = &model.source {
                 // A models-dir copy counts too: mirror-fallback downloads land
                 // there, and it makes manual drop-ins of catalog files work.
@@ -2563,6 +2603,10 @@ impl ModelManager {
         let model_info = self
             .get_model_info(model_id)
             .ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        if matches!(model_info.engine_type, EngineType::GeminiCloud) {
+            return Ok(PathBuf::new());
+        }
 
         if !model_info.is_downloaded {
             return Err(anyhow::anyhow!("Model not available: {}", model_id));

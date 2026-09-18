@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Handy",
+  "productName": "ohmyHandy",
   "version": "0.9.7",
-  "identifier": "com.pais.handy",
+  "identifier": "io.dayson.ohmyhandy",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",

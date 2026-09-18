@@ -188,6 +188,10 @@ enum LoadedEngine {
     GigaAM(GigaAMModel),
     Canary(CanaryModel),
     Cohere(CohereModel),
+    GeminiCloud {
+        api_key: String,
+        model_name: String,
+    },
 }
 
 /// RAII guard that clears the `is_loading` flag and notifies waiters on drop.
@@ -704,6 +708,23 @@ impl TranscriptionManager {
                     anyhow::anyhow!(error_msg)
                 })?;
                 LoadedEngine::Cohere(engine)
+            }
+            EngineType::GeminiCloud => {
+                let settings = get_settings(&self.app_handle);
+                let api_key = settings
+                    .gemini_stt_api_key
+                    .as_deref()
+                    .unwrap_or_default()
+                    .to_string();
+                let model_name = if settings.gemini_stt_model.trim().is_empty() {
+                    "gemini-3.5-transcribe".to_string()
+                } else {
+                    settings.gemini_stt_model.clone()
+                };
+                LoadedEngine::GeminiCloud {
+                    api_key,
+                    model_name,
+                }
             }
         };
 
@@ -1428,6 +1449,38 @@ impl TranscriptionManager {
                             .transcribe(&audio, &options)
                             .map(|r| r.text)
                             .map_err(|e| anyhow::anyhow!("Cohere transcription failed: {}", e))
+                    }
+                    LoadedEngine::GeminiCloud {
+                        api_key,
+                        model_name,
+                    } => {
+                        let lang = if validated_language == "auto" {
+                            None
+                        } else {
+                            Some(normalize_cjk_language(&validated_language).to_string())
+                        };
+                        applied_language_hint = lang.clone();
+                        let api_key = api_key.clone();
+                        let model_name = model_name.clone();
+                        let audio = audio.clone();
+                        let custom_words = get_settings(&self.app_handle).custom_words.clone();
+                        thread::spawn(move || {
+                            let rt = tokio::runtime::Builder::new_current_thread()
+                                .enable_all()
+                                .build()
+                                .map_err(|e| {
+                                    anyhow::anyhow!("Failed to create runtime for Gemini: {}", e)
+                                })?;
+                            rt.block_on(crate::managers::gemini_stt::transcribe_gemini_cloud(
+                                &api_key,
+                                &model_name,
+                                &audio,
+                                16000,
+                                &custom_words,
+                            ))
+                        })
+                        .join()
+                        .map_err(|_| anyhow::anyhow!("Gemini thread panicked"))?
                     }
                 }
             }));

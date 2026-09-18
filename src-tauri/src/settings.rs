@@ -353,6 +353,33 @@ impl std::ops::DerefMut for SecretMap {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Type, Default, PartialEq, Eq)]
+#[serde(transparent)]
+pub(crate) struct SecretString(Option<String>);
+
+impl fmt::Debug for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(v) if !v.is_empty() => write!(f, "Some(\"[REDACTED]\")"),
+            Some(_) => write!(f, "Some(\"\")"),
+            None => write!(f, "None"),
+        }
+    }
+}
+
+impl std::ops::Deref for SecretString {
+    type Target = Option<String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for SecretString {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 /// The container-level `serde(default)` (backed by the `Default` impl below)
 /// guarantees every field — including ones added in the future — falls back to
@@ -514,6 +541,14 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    #[serde(default)]
+    pub gemini_stt_api_key: SecretString,
+    #[serde(default = "default_gemini_stt_model")]
+    pub gemini_stt_model: String,
+}
+
+fn default_gemini_stt_model() -> String {
+    "gemini-3.5-transcribe".to_string()
 }
 
 fn default_model() -> String {
@@ -970,6 +1005,8 @@ pub fn get_default_settings() -> AppSettings {
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
+        gemini_stt_api_key: SecretString::default(),
+        gemini_stt_model: default_gemini_stt_model(),
     }
 }
 

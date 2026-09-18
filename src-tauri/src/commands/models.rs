@@ -204,3 +204,17 @@ pub async fn cancel_download(
         .cancel_download(&model_id)
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn change_gemini_stt_api_key(app: AppHandle, key: String) -> Result<(), String> {
+    let mut settings = get_settings(&app);
+    let trimmed = key.trim().to_string();
+    *settings.gemini_stt_api_key = if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    };
+    write_settings(&app, settings);
+    Ok(())
+}

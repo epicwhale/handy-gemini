@@ -194,6 +194,8 @@ const settingUpdaters: {
     commands.changeTranscribeGpuDevice(value as string | null),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
+  gemini_stt_api_key: (value) =>
+    commands.changeGeminiSttApiKey((value as string) || ""),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
