@@ -431,6 +431,11 @@
       "rescan": {
         "label": "Rescan",
         "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Handy"
+      },
+      "geminiApiKey": {
+        "title": "Gemini API Key",
+        "description": "Required when using Gemini 3.5 Transcribe (Cloud) model.",
+        "placeholder": "Paste your Gemini API key (AQ.Ab8RN...)"
       }
     },
     "languages": {

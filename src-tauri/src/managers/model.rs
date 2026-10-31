@@ -1124,6 +1124,7 @@ impl ModelManager {
     fn seed_catalog_models(available_models: &mut HashMap<String, ModelInfo>) {
         use std::collections::hash_map::Entry;
         let mut added = 0usize;
+        crate::managers::gemini_stt::seed_model(available_models);
         for desc in crate::catalog::CATALOG.iter() {
             if let Entry::Vacant(slot) = available_models.entry(desc.id.clone()) {
                 slot.insert(desc.to_model_info(&DiskStatus::default()));
@@ -1320,6 +1321,10 @@ impl ModelManager {
         let mut vanished_models: Vec<String> = Vec::new();
 
         for model in models.values_mut() {
+            if crate::managers::gemini_stt::is_cloud_model(&model.id) {
+                model.is_downloaded = true;
+                continue;
+            }
             if let ModelSource::HuggingFace { repo_id, revision } = &model.source {
                 // A models-dir copy counts too: mirror-fallback downloads land
                 // there, and it makes manual drop-ins of catalog files work.
@@ -2511,6 +2516,10 @@ impl ModelManager {
         let model_info = self
             .get_model_info(model_id)
             .ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        if crate::managers::gemini_stt::is_cloud_model(model_id) {
+            return Ok(PathBuf::new());
+        }
 
         if !model_info.is_downloaded {
             return Err(anyhow::anyhow!("Model not available: {}", model_id));
