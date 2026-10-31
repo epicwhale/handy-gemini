@@ -13,6 +13,7 @@ import RetiredModelsNotice from "./RetiredModelsNotice";
 import { ModelRow } from "./ModelRow";
 import { Legend } from "./Legend";
 import { useModelEntries } from "./modelEntries";
+import { GeminiApiKeyInput } from "@/components/settings/GeminiApiKeyInput";
 
 /** Past this many models on disk, the rest fold under "Show N more". */
 const YOURS_LIMIT = 5;
@@ -153,6 +154,9 @@ export const ModelsSettings: React.FC<ModelsSettingsProps> = ({
       </div>
       <div className="mx-[12px] mb-[16px] flex-none empty:hidden">
         <RetiredModelsNotice />
+      </div>
+      <div className="mb-[12px] flex-none">
+        <GeminiApiKeyInput />
       </div>
       <ModelTable
         grading={facts}

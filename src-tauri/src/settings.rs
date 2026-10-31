@@ -569,6 +569,10 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    #[serde(default)]
+    pub gemini_stt_api_key: crate::managers::gemini_stt::SecretString,
+    #[serde(default = "crate::managers::gemini_stt::default_model_name")]
+    pub gemini_stt_model: String,
 }
 
 fn default_model() -> String {
@@ -1067,6 +1071,8 @@ pub fn get_default_settings() -> AppSettings {
         language_detection: LanguageDetectionMode::default(),
         language_detection_window_secs: default_language_detection_window_secs(),
         overlay_style: default_overlay_style(),
+        gemini_stt_api_key: Default::default(),
+        gemini_stt_model: crate::managers::gemini_stt::default_model_name(),
     }
 }
 

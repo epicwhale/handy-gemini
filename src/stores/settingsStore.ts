@@ -217,6 +217,8 @@ const settingUpdaters: {
     commands.changeLanguageDetectionSetting(value as LanguageDetectionMode),
   language_detection_window_secs: (value) =>
     commands.changeLanguageDetectionWindowSetting(value as number),
+  gemini_stt_api_key: (value) =>
+    commands.changeGeminiSttApiKey((value as string) || ""),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

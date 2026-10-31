@@ -375,10 +375,25 @@ impl TranscriptionManager {
         Ok(manager)
     }
 
+    fn loaded_info(&self) -> Option<LoadedInfo> {
+        if self
+            .current_model_id
+            .lock()
+            .unwrap()
+            .as_deref()
+            .is_some_and(crate::managers::gemini_stt::is_cloud_model)
+        {
+            return Some(crate::managers::gemini_stt::loaded_info(
+                &self.model_manager,
+            ));
+        }
+        self.engine.loaded()
+    }
+
     pub fn is_model_loaded(&self) -> bool {
         // A transcribe-cpp model stays loaded while it is busy, so a batch
         // run or stream in progress never reads as "unloaded".
-        self.engine.loaded().is_some()
+        self.loaded_info().is_some()
     }
 
     /// Accelerator changes should not disturb the current transcription. Mark
@@ -593,6 +608,22 @@ impl TranscriptionManager {
             *current_model = None;
         }
 
+        if crate::managers::gemini_stt::is_cloud_model(model_id) {
+            let _ = self.engine.unload();
+            *self.current_model_id.lock().unwrap() = Some(model_id.to_string());
+            self.touch_activity();
+            let _ = self.app_handle.emit(
+                "model-state-changed",
+                ModelStateEvent {
+                    event_type: "loading_completed".to_string(),
+                    model_id: Some(model_id.to_string()),
+                    model_name: Some(model_info.name.clone()),
+                    error: None,
+                },
+            );
+            return Ok(());
+        }
+
         // The backend is chosen at load time. With an explicit
         // `device_index` (the --device-index flag) hard-select that
         // registered device; otherwise re-read the persisted
@@ -760,7 +791,7 @@ impl TranscriptionManager {
     /// diagnostics (e.g. confirming `--device-index` actually bound a GPU rather
     /// than falling back to CPU/auto); `None` when no model is loaded.
     pub fn current_backend(&self) -> Option<String> {
-        self.engine.loaded().map(|info| info.backend)
+        self.loaded_info().map(|info| info.backend)
     }
 
     /// Whether a file job is queued or running, which holds the model.
@@ -1064,7 +1095,7 @@ impl TranscriptionManager {
                 is_loading = self.loading_condvar.wait(is_loading).unwrap();
             }
         }
-        let Some(info) = self.engine.loaded() else {
+        let Some(info) = self.loaded_info() else {
             return Err(anyhow::anyhow!("Model is not loaded for transcription."));
         };
 
@@ -1200,6 +1231,9 @@ impl TranscriptionManager {
         active_model: &str,
     ) -> Result<Transcript, EngineError> {
         self.touch_activity();
+        if crate::managers::gemini_stt::is_cloud_model(active_model) {
+            return crate::managers::gemini_stt::run_batch(&self.app_handle, pcm, run_options);
+        }
         self.engine
             .transcribe_since(mark, pcm, run_options.clone())
             .inspect_err(|e| {
